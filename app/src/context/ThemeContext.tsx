@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -57,8 +58,14 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('light');
+  const { user, updatePreferences } = useAuth();
+  useEffect(() => { setMode(user?.tema ?? 'light'); }, [user?.id, user?.tema]);
   const theme = mode === 'dark' ? darkTheme : lightTheme;
-  const toggleTheme = () => setMode((m) => (m === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => {
+    const next = mode === 'dark' ? 'light' : 'dark';
+    setMode(next);
+    updatePreferences({ tema: next }).catch(() => setMode(mode));
+  };
   return (
     <ThemeContext.Provider value={{ theme, isDark: mode === 'dark', toggleTheme }}>
       {children}

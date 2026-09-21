@@ -1,68 +1,53 @@
-# Divas — rotina de beleza personalizada
+# Divas — banco online com Supabase
 
-Aplicativo mobile criado com Expo/React Native para ajudar cada pessoa a encontrar cosméticos e cuidados adequados ao seu tipo de pele. O projeto agora inclui uma jornada de conta (login, cadastro, perfil e configurações) e uma API PHP com MySQL.
+O Divas é um aplicativo Expo/React Native. A autenticação e todos os dados mutáveis agora usam **Supabase Auth + PostgreSQL**, então não dependem de XAMPP, PHP, MySQL ou do computador de desenvolvimento.
 
-## O que foi criado
+## O que é persistido online
 
-- Tela de login com validação e retorno de erro claro.
-- Cadastro com nome, e-mail, senha e tipo de pele.
-- Perfil da pessoa usuária, diagnóstico de pele e saída da conta.
-- Configurações mais completas, com acesso à conta, notificações e tema escuro.
-- Tela **Sobre o Divas**, acessível pelo menu e pelas configurações.
-- API PHP de cadastro e login com senhas protegidas usando `password_hash`.
-- Banco MySQL com e-mail único, evitando contas duplicadas.
+| Dados | Tabela | Acesso |
+| --- | --- | --- |
+| Perfil, tipo de pele, tema e notificações | `profiles` | Somente a própria pessoa usuária |
+| Produtos adicionados ao carrinho | `cart_items` | Somente a própria pessoa usuária |
+| Histórico e resultado do diagnóstico | `quiz_results` | Somente a própria pessoa usuária |
 
-## Como executar o aplicativo
+O catálogo em `app/data/products.ts` é conteúdo estático do aplicativo; ele não é dado de usuário e continua no código. O diretório `backend/` contém a antiga API PHP/MySQL apenas como referência e não é usado pelo aplicativo.
 
-1. Instale o Node.js e abra esta pasta no terminal.
-2. Instale as dependências: `npm install`.
-3. Copie `.env.example` para um arquivo chamado `.env` e ajuste a URL para o local onde a API PHP estará disponível.
-4. Inicie o app com `npm start` e abra pelo Expo Go ou emulador.
+## Configurar o Supabase (uma vez)
 
-### URL da API
-
-No arquivo `.env`, use uma destas opções:
+1. Crie um projeto em [Supabase](https://supabase.com/dashboard).
+2. Abra **SQL Editor** e execute o arquivo [20260920_initial_schema.sql](supabase/migrations/20260920_initial_schema.sql).
+3. Em **Authentication > Providers > Email**, mantenha o provedor de e-mail habilitado. Para produção, configure confirmação de e-mail e SMTP próprio.
+4. Em **Settings > API**, copie apenas o **Project URL** e a **Publishable key**.
+5. Copie `.env.example` para `.env` e preencha:
 
 ```env
-# Emulador Android com XAMPP instalado no mesmo computador
-EXPO_PUBLIC_API_URL=http://10.0.2.2/divas-api
-
-# Dispositivo físico: use o IP local do seu computador
-# EXPO_PUBLIC_API_URL=http://192.168.0.10/divas-api
+EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_sua_chave_publica
 ```
 
-Não use `localhost` no celular: nele, `localhost` significa o próprio celular, não seu computador.
+Esses dois valores podem estar no app: as permissões são protegidas pelas políticas RLS. **Nunca** coloque `service_role`, senha de banco ou qualquer chave secreta em `.env` do Expo, no código ou no Git.
 
-## Como preparar o PHP e o banco
+## Executar e publicar
 
-1. Instale o XAMPP com **PHP 8.0 ou superior**, depois inicie **Apache** e **MySQL**. A API verifica a versão do PHP e informa se ela for incompatível.
-2. Copie a pasta `backend` para a pasta pública do Apache. No XAMPP normalmente ela fica em `C:\xampp\htdocs\divas-api`.
-3. Abra o phpMyAdmin (`http://localhost/phpmyadmin`), escolha **Importar** e selecione `backend/database.sql`.
-4. Copie `backend/config.example.php` como `backend/config.php` e informe seu usuário e senha do MySQL. No XAMPP padrão, normalmente o usuário é `root` e a senha fica vazia.
-5. Troque `TOKEN_SECRET` por uma frase secreta longa antes de publicar o projeto.
-6. Ajuste `EXPO_PUBLIC_API_URL` como explicado acima e reinicie o Expo.
-
-Para testar a API, abra `http://localhost/divas-api/health.php` no navegador. A resposta deve informar que a API e o banco estão funcionando e exibir a versão do PHP.
-
-## Como o login funciona
-
-1. A tela envia nome/e-mail/senha para `register.php` ou e-mail/senha para `login.php`.
-2. A API verifica os dados. Ela nunca guarda a senha em texto: o PHP gera um hash seguro.
-3. Se os dados estiverem corretos, a API devolve o perfil e um token de acesso para o app.
-4. O app mostra o perfil e usa o tipo de pele informado para personalizar a experiência.
-
-## Estrutura importante
-
-```text
-app/login.tsx                    tela de login
-app/cadastro.tsx                 criação de conta
-app/perfil.tsx                   perfil da pessoa usuária
-app/src/context/AuthContext.tsx  comunicação com a API e estado do login
-backend/register.php             cadastro seguro no PHP
-backend/login.php                autenticação no PHP
-backend/database.sql             estrutura do MySQL
+```bash
+npm install
+npm start
 ```
 
-## Próximos passos recomendados
+Reinicie o Expo sempre que alterar `.env`. A mesma configuração funciona no Expo Go, emulador, web e build publicado — não existe IP local nem serviço para manter ligado.
 
-Para publicar de verdade, a próxima melhoria é guardar o token de forma persistente e segura no aparelho e criar endpoints autenticados para editar perfil, favoritos e resultados do quiz. Mantenha `backend/config.php` fora do Git: ele contém as credenciais do banco.
+Para hospedagem web, defina as mesmas variáveis `EXPO_PUBLIC_*` no provedor de build antes de executar o build. Para builds Android/iOS, configure-as no ambiente de build/EAS. O banco e o Auth continuam hospedados no Supabase.
+
+## Segurança
+
+- Senhas são gerenciadas pelo Supabase Auth e nunca passam pelo banco público `profiles`.
+- O trigger `handle_new_user` cria o perfil associado ao UUID de `auth.users` no servidor.
+- RLS está habilitado nas três tabelas. Toda política compara `auth.uid()` ao dono da linha para leitura e escrita.
+- O cliente só usa a Publishable key; privilégios administrativos ficam exclusivamente no painel/servidor do Supabase.
+
+## Validação local
+
+```bash
+npx tsc --noEmit
+npm run lint
+```

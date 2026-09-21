@@ -2,8 +2,9 @@ import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import {
   TouchableOpacity, View, Text, StyleSheet,
-  Modal, Pressable, SafeAreaView, StatusBar
+  Modal, Pressable, StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -68,9 +69,6 @@ function LayoutInner() {
         <Stack.Screen name="configuracao" options={{ title: 'Configuração' }} />
         <Stack.Screen name="produtos" options={{ title: 'Produtos' }} />
         <Stack.Screen name="quiz" options={{ title: 'Quiz' }} />
-        <Stack.Screen name="pele" options={{ title: 'Pele' }} />
-        <Stack.Screen name="rosto" options={{ title: 'Rosto' }} />
-        <Stack.Screen name="cabelo" options={{ title: 'Cabelo' }} />
         <Stack.Screen name="categorias/Maquiagem/maquiagem" options={{ title: 'Categoria de Maquiagem' }}/>
         <Stack.Screen name="categorias/Maquiagem/maquiagem1" options={{ title: 'Categoria de Maquiagem' }}/>
         <Stack.Screen name="categorias/Maquiagem/maquiagem2" options={{ title: 'Categoria de Maquiagem' }}/>
@@ -140,7 +138,7 @@ function LayoutInner() {
 
 export default function Layout() {
   return (
-    <ThemeProvider><AuthProvider><CartProvider><LayoutInner /></CartProvider></AuthProvider></ThemeProvider>
+    <AuthProvider><ThemeProvider><CartProvider><LayoutInner /></CartProvider></ThemeProvider></AuthProvider>
   );
 }
 

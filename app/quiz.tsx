@@ -3,6 +3,8 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from './src/context/ThemeContext';
+import { useAuth } from './src/context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 type Skin = 'oleosa' | 'seca' | 'sensivel';
 const questions: { title: string; subtitle: string; answers: { text: string; type: Skin; icon: string }[] }[] = [
@@ -15,10 +17,12 @@ const results = { oleosa: { icon: 'sunny-outline', title: 'Pele oleosa', text: '
 
 export default function Quiz() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [step, setStep] = useState(0); const [scores, setScores] = useState<Record<Skin, number>>({ oleosa: 0, seca: 0, sensivel: 0 }); const [selected, setSelected] = useState<string | null>(null); const [finished, setFinished] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current; const translate = useRef(new Animated.Value(0)).current;
   const animate = (next: () => void) => Animated.parallel([Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }), Animated.timing(translate, { toValue: -12, duration: 150, useNativeDriver: true })]).start(() => { next(); translate.setValue(12); Animated.parallel([Animated.timing(opacity, { toValue: 1, duration: 230, useNativeDriver: true }), Animated.spring(translate, { toValue: 0, useNativeDriver: true, friction: 8 })]).start(); });
-  const answer = (type: Skin, text: string) => { if (selected) return; setSelected(text); const nextScores = { ...scores, [type]: scores[type] + 1 }; setScores(nextScores); setTimeout(() => animate(() => { setSelected(null); if (step === questions.length - 1) setFinished(true); else setStep(step + 1); }), 180); };
+  const saveResult = async (nextScores: Record<Skin, number>) => { if (!user) return; const bestResult = (Object.entries(nextScores).sort((a, b) => b[1] - a[1])[0]?.[0] || 'normal') as keyof typeof results; const skinType = { oleosa: 'Oleosa', seca: 'Seca', sensivel: 'Sensível', normal: 'Normal' }[bestResult]; await supabase.from('quiz_results').insert({ user_id: user.id, result_type: bestResult, scores: nextScores }); await supabase.from('profiles').update({ skin_type: skinType }).eq('id', user.id); };
+  const answer = (type: Skin, text: string) => { if (selected) return; setSelected(text); const nextScores = { ...scores, [type]: scores[type] + 1 }; setScores(nextScores); setTimeout(() => animate(() => { setSelected(null); if (step === questions.length - 1) { setFinished(true); saveResult(nextScores).catch(() => undefined); } else setStep(step + 1); }), 180); };
   const restart = () => { setStep(0); setScores({ oleosa: 0, seca: 0, sensivel: 0 }); setSelected(null); animate(() => setFinished(false)); };
   const best = (Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || 'normal') as keyof typeof results;
   const question = questions[step]; const progress = finished ? 1 : (step + 1) / questions.length;
